@@ -23,6 +23,7 @@ seo:
 post_status: "LIVE"  # LIVE or DRAFT
 max_posts_per_run: 3  # Limit posts per day
 
-# Hugging Face Image Generation
-hf_token: ""  # Set via HF_TOKEN env var in production
-hf_model: "black-forest-labs/FLUX.1-dev"
+# Image Generation
+# Tier 1: Pollinations (free, unlimited, same FLUX model)
+# Tier 2: Picsum (random real photos as last resort)
+# Note: Google Gemini image gen is paid-only; your API key won't work for images without billing enabled.

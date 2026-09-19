@@ -104,55 +104,72 @@ def get_blog_id(service, blog_url):
     return resp['id']
 
 
-def generate_image(prompt, config, max_retries=3):
-    """Generate image using Hugging Face Inference API."""
-    hf_token = os.environ.get('HF_TOKEN') or config.get('hf_token')
-    if not hf_token:
-        logger.warning("No HF token found")
+def generate_image_gemini(prompt, config, max_retries=3):
+    """Generate image using Google Gemini API (free tier: 50 images/day)."""
+    gemini_key = os.environ.get('GEMINI_API_KEY') or config.get('gemini_api_key')
+    if not gemini_key:
+        logger.warning("No Gemini API key found")
         return None, None
     
-    model = config.get('hf_model', 'black-forest-labs/FLUX.1-dev')
-    api_url = f"https://api-inference.huggingface.co/models/{model}"
-    headers = {"Authorization": f"Bearer {hf_token}"}
+    model = config.get('gemini_model', 'gemini-2.0-flash-exp')
+    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}"
+    
+    payload = {
+        "contents": [{"parts": [{"text": f"Generate a realistic, high-quality photograph based on this description. The image should be photorealistic and professional: {prompt}"}]}],
+        "generationConfig": {
+            "responseModalities": ["TEXT", "IMAGE"],
+            "temperature": 0.7
+        }
+    }
+    
+    headers = {"Content-Type": "application/json"}
     
     for attempt in range(max_retries):
         try:
             response = requests.post(
                 api_url,
                 headers=headers,
-                json={"inputs": prompt},
+                json=payload,
                 timeout=120
             )
             
             if response.status_code == 200:
-                content_type = response.headers.get('content-type', 'image/png')
-                if 'image' in content_type:
-                    return response.content, content_type
-                else:
-                    logger.warning(f"Unexpected content type: {content_type}")
-                    return None, None
-            elif response.status_code == 503:
-                try:
-                    wait_time = response.json().get('estimated_time', 30)
-                except:
-                    wait_time = 30
-                logger.info(f"Model loading, waiting {wait_time}s...")
-                time.sleep(wait_time)
+                result = response.json()
+                # Extract image from candidates
+                candidates = result.get('candidates', [])
+                if candidates:
+                    parts = candidates[0].get('content', {}).get('parts', [])
+                    for part in parts:
+                        inline_data = part.get('inlineData')
+                        if inline_data:
+                            mime_type = inline_data.get('mimeType', 'image/png')
+                            # Data is base64 encoded
+                            image_data = base64.b64decode(inline_data['data'])
+                            return image_data, mime_type
+                logger.warning("Gemini returned no image data")
+                return None, None
+            elif response.status_code == 429:
+                logger.warning("Gemini rate limit hit, waiting...")
+                time.sleep(30)
                 continue
+            elif response.status_code == 400:
+                error_msg = response.json().get('error', {}).get('message', response.text[:200])
+                logger.error(f"Gemini bad request: {error_msg}")
+                return None, None
             else:
-                logger.error(f"HF API error: {response.status_code} - {response.text[:200]}")
+                logger.error(f"Gemini API error: {response.status_code} - {response.text[:200]}")
                 if attempt < max_retries - 1:
                     time.sleep(10)
                     continue
                 return None, None
         except requests.Timeout:
-            logger.error(f"Timeout (attempt {attempt+1})")
+            logger.error(f"Gemini timeout (attempt {attempt+1})")
             if attempt < max_retries - 1:
                 time.sleep(10)
                 continue
             return None, None
         except Exception as e:
-            logger.error(f"HF request error: {e}")
+            logger.error(f"Gemini request error: {e}")
             if attempt < max_retries - 1:
                 time.sleep(10)
                 continue
@@ -256,18 +273,13 @@ def generate_article(entry, config):
     keyword_str = ' '.join(keywords[:3])
     image_prompt = f"{keyword_str}, realistic photograph, professional"
     
-    # Tier 1: Hugging Face
-    logger.info(f"Trying Hugging Face for: {image_prompt}")
-    image_data, content_type = generate_image(image_prompt, config)
+    # Tier 1: Pollinations (free, unlimited, FLUX model)
+    logger.info(f"Trying Pollinations for: {image_prompt}")
+    image_data, content_type = generate_image_pollinations(image_prompt)
     
-    # Tier 2: Pollinations
+    # Tier 2: Picsum (random real photos as last resort)
     if not image_data:
-        logger.info("HF failed, trying Pollinations")
-        image_data, content_type = generate_image_pollinations(image_prompt)
-    
-    # Tier 3: Picsum
-    if not image_data:
-        logger.info("Using Picsum fallback")
+        logger.info("Pollinations failed, using Picsum fallback")
         image_data, content_type = generate_image_picsum(keyword_str)
     
     if image_data:
