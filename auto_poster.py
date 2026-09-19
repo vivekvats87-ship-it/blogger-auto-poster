@@ -58,6 +58,14 @@ def init_db():
             posted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS posted_topics (
+            topic_hash TEXT PRIMARY KEY,
+            topic TEXT,
+            keywords TEXT,
+            posted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     return conn
 
@@ -129,6 +137,48 @@ def extract_keywords(title, content, count=5):
     counter = Counter(words)
     keywords = [word for word, _ in counter.most_common(count)]
     return keywords if keywords else ['tech', 'news']
+
+
+def normalize_title(title):
+    """Normalize title for topic comparison."""
+    import html
+    title = html.unescape(title).lower()
+    # Remove common suffixes/prefixes
+    title = re.sub(r'\s*[-|]\s*(forbes|engadget|gsmarena|techcrunch|the verge|wired|cnet|zdnet|mashable|business standard|reuters|bloomberg)$', '', title)
+    title = re.sub(r'^(the|a|an)\s+', '', title)
+    title = re.sub(r'[^a-z0-9\s]', '', title)
+    return title.strip()
+
+def is_topic_posted(conn, title, keywords):
+    """Check if a similar topic has already been posted."""
+    # Check by exact title hash
+    norm = normalize_title(title)
+    title_hash = hashlib.md5(norm.encode()).hexdigest()
+    cursor = conn.execute('SELECT 1 FROM posted_topics WHERE topic_hash = ?', (title_hash,))
+    if cursor.fetchone():
+        return True
+    
+    # Check by keyword overlap (if 3+ keywords match an existing topic)
+    keyword_set = set(keywords[:5])
+    cursor = conn.execute('SELECT keywords FROM posted_topics')
+    for (existing_keywords_str,) in cursor.fetchall():
+        if existing_keywords_str:
+            existing_set = set(existing_keywords_str.split(','))
+            overlap = keyword_set & existing_set
+            if len(overlap) >= 3:
+                return True
+    return False
+
+def mark_topic_posted(conn, title, keywords):
+    """Record topic as posted for future dedup."""
+    norm = normalize_title(title)
+    topic_hash = hashlib.md5(norm.encode()).hexdigest()
+    keywords_str = ','.join(keywords[:5])
+    conn.execute(
+        'INSERT OR REPLACE INTO posted_topics (topic_hash, topic, keywords) VALUES (?, ?, ?)',
+        (topic_hash, norm, keywords_str)
+    )
+    conn.commit()
 
 
 def get_external_links(keywords, num_links=3):
@@ -419,9 +469,12 @@ def main():
         url = entry.get('link', '')
         title = entry.get('title', '')
         
-        if not url or is_posted(conn, url):
+        # Extract keywords for topic dedup
+        keywords = extract_keywords(title, entry.get('summary', ''), config['seo']['keywords_count'])
+        
+        if not url or is_posted(conn, url) or is_topic_posted(conn, title, keywords):
             if title:
-                logger.info(f"Skipping: {title[:50]}")
+                logger.info(f"Skipping (topic posted): {title[:50]}")
             continue
         
         logger.info(f"Processing: {title[:60]}")
@@ -432,6 +485,7 @@ def main():
             logger.info(f"Posted: {result.get('url', 'N/A')}")
             posts_created += 1
             mark_posted(conn, url, title)
+            mark_topic_posted(conn, title, keywords)
         except Exception as e:
             logger.error(f"Failed to post: {e}")
             continue
