@@ -11,8 +11,7 @@ feed_urls:
   - "https://feeds.arstechnica.com/arstechnica/index"
   - "https://www.cnet.com/rss/news/"
 
-# Article generation settings:
-# - Option A: expand each RSS item into full article
+# Article generation settings
 article_mode: "expand"
 min_words: 2000
 max_words: 3000
@@ -25,8 +24,9 @@ seo:
   heading_levels: ["h2", "h3"]
 
 # Posting settings
-post_status: "LIVE"  # LIVE or DRAFT
-max_posts_per_run: 10  # Limit posts per run
+post_status: "LIVE"
+# Blogger is returning HTTP 429 when a run attempts many posts.
+# Keep hourly runs within the Blogger API quota.
+max_posts_per_run: 1
 
-# Note: Image generation has been removed. Articles are text-only
-# for faster publishing and better SEO performance.
+# Image generation has been removed. Articles are text-only.
