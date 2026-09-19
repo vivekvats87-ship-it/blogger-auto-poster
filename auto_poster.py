@@ -467,8 +467,22 @@ def main():
     feed = None
     feed_url_used = None
     
-    # Get feeds from config or use defaults
-    feed_urls = config.get('feed_urls', [config['feed_url']])
+    # Get feeds from config or use defaults (backward compatibility)
+    feed_urls = config.get('feed_urls', [])
+    if not feed_urls:
+        # Fallback to old single feed_url format
+        single_feed = config.get('feed_url')
+        if single_feed:
+            feed_urls = [single_feed]
+        else:
+            # Default feeds if nothing configured
+            feed_urls = [
+                "https://news.google.com/rss/topics/CAAqKggKIiRDQkFTRlFvSUwyMHZNRGRqTVhZU0JXVnVMVWRDR2dKSlRpZ0FQAQ?hl=en-IN&gl=IN&ceid=IN%3Aen",
+                "https://techcrunch.com/feed/",
+                "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
+                "https://feeds.arstechnica.com/arstechnica/index",
+                "https://www.cnet.com/rss/news/",
+            ]
     
     for feed_url in feed_urls:
         logger.info(f"Trying feed: {feed_url[:60]}...")
