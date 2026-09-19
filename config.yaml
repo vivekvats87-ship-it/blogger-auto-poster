@@ -9,8 +9,8 @@ feed_url: "https://news.google.com/rss/topics/CAAqKggKIiRDQkFTRlFvSUwyMHZNRGRqTV
 # Article generation settings:
 # - Option A: expand each RSS item into full article
 article_mode: "expand"
-min_words: 800
-max_words: 1200
+min_words: 2000
+max_words: 3000
 
 # SEO settings
 seo:
@@ -23,7 +23,5 @@ seo:
 post_status: "LIVE"  # LIVE or DRAFT
 max_posts_per_run: 3  # Limit posts per day
 
-# Image Generation
-# Tier 1: Pollinations (free, unlimited, same FLUX model)
-# Tier 2: Picsum (random real photos as last resort)
-# Note: Google Gemini image gen is paid-only; your API key won't work for images without billing enabled.
+# Note: Image generation has been removed. Articles are text-only
+# for faster publishing and better SEO performance.
