@@ -2,7 +2,7 @@ name: Blogger Auto-Poster
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
+    - cron: '0 * * * *'  # Every hour
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
@@ -34,6 +34,7 @@ jobs:
         with:
           path: |
             posted_urls.db
+            posted_topics.db
             token.json
           key: blogger-state-${{ github.run_id }}
           restore-keys: |
@@ -49,6 +50,14 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python auto_poster.py
+          
+      - name: Commit state changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "auto: Hourly update - $(date '+%Y-%m-%d %H:%M UTC')"
+          git push
           
       - name: Upload logs
         if: always()
