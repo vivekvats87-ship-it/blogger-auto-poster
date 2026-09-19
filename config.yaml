@@ -3,8 +3,13 @@
 # Blog settings
 blog_url: "https://new-news-tech-blog.blogspot.com/"
 
-# RSS Feed
-feed_url: "https://news.google.com/rss/topics/CAAqKggKIiRDQkFTRlFvSUwyMHZNRGRqTVhZU0JXVnVMVWRDR2dKSlRpZ0FQAQ?hl=en-IN&gl=IN&ceid=IN%3Aen"
+# RSS Feeds (tried in order)
+feed_urls:
+  - "https://news.google.com/rss/topics/CAAqKggKIiRDQkFTRlFvSUwyMHZNRGRqTVhZU0JXVnVMVWRDR2dKSlRpZ0FQAQ?hl=en-IN&gl=IN&ceid=IN%3Aen"
+  - "https://techcrunch.com/feed/"
+  - "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"
+  - "https://feeds.arstechnica.com/arstechnica/index"
+  - "https://www.cnet.com/rss/news/"
 
 # Article generation settings:
 # - Option A: expand each RSS item into full article

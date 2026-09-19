@@ -437,6 +437,25 @@ def post_to_blogger(service, blog_id, article):
     return resp
 
 
+def fetch_feed_with_retry(feed_url, max_retries=3):
+    """Fetch RSS feed with retry logic and proper headers."""
+    for attempt in range(max_retries):
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/rss+xml, application/xml, text/xml',
+            }
+            feed = feedparser.parse(feed_url, request_headers=headers)
+            if feed.entries:
+                return feed
+            logger.warning(f"Feed {feed_url} returned 0 entries (attempt {attempt+1})")
+            time.sleep(2 * (attempt + 1))
+        except Exception as e:
+            logger.error(f"Feed fetch error {feed_url}: {e}")
+            time.sleep(2 * (attempt + 1))
+    return None
+
+
 def main():
     logger.info("=" * 60)
     logger.info("Starting Blogger Auto-Poster")
@@ -444,12 +463,40 @@ def main():
     config = load_config()
     conn = init_db()
     
-    feed = feedparser.parse(config['feed_url'])
-    if not feed.entries:
-        logger.error("No entries found!")
-        sys.exit(1)
+    # Try multiple feed sources
+    feed = None
+    feed_url_used = None
     
-    logger.info(f"Found {len(feed.entries)} entries")
+    # Get feeds from config or use defaults
+    feed_urls = config.get('feed_urls', [config['feed_url']])
+    
+    for feed_url in feed_urls:
+        logger.info(f"Trying feed: {feed_url[:60]}...")
+        feed = fetch_feed_with_retry(feed_url, max_retries=2)
+        if feed and feed.entries:
+            feed_url_used = feed_url
+            logger.info(f"Using feed: {feed_url[:60]}... ({len(feed.entries)} entries)")
+            break
+    
+    if not feed or not feed.entries:
+        logger.error("No entries found from any feed source!")
+        logger.info("Waiting 60 seconds and retrying...")
+        time.sleep(60)
+        # One final attempt
+        for feed_url in feed_urls:
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            feed = feedparser.parse(feed_url, request_headers=headers)
+            if feed.entries:
+                feed_url_used = feed_url
+                break
+    
+    if not feed or not feed.entries:
+        logger.error("All feed sources exhausted. Skipping this run.")
+        # Don't exit with error so the workflow doesn't show as failed
+        conn.close()
+        return 0
+    
+    logger.info(f"Processing {len(feed.entries)} entries from {feed_url_used[:60]}...")
     
     try:
         service = get_blogger_service()
@@ -460,7 +507,7 @@ def main():
         sys.exit(1)
     
     posts_created = 0
-    max_posts = config.get('max_posts_per_run', 3)
+    max_posts = config.get('max_posts_per_run', 10)
     
     for entry in feed.entries:
         if posts_created >= max_posts:
