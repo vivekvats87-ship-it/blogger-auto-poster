@@ -2,8 +2,10 @@ name: Blogger Auto-Poster
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Every hour
+    - cron: '0 * * * *'  # Every hour (backup)
   workflow_dispatch:  # Allow manual trigger
+  repository_dispatch:  # Allow external trigger (cron-job.org)
+    types: [hourly-trigger]
 
 jobs:
   post:
