@@ -1,0 +1,28 @@
+# Blogger Auto-Poster Configuration
+
+# Blog settings
+blog_url: "https://new-news-tech-blog.blogspot.com/"
+
+# RSS Feed
+feed_url: "https://news.google.com/rss/topics/CAAqKggKIiRDQkFTRlFvSUwyMHZNRGRqTVhZU0JXVnVMVWRDR2dKSlRpZ0FQAQ?hl=en-IN&gl=IN&ceid=IN%3Aen"
+
+# Article generation settings:
+# - Option A: expand each RSS item into full article
+article_mode: "expand"
+min_words: 800
+max_words: 1200
+
+# SEO settings
+seo:
+  keywords_count: 5
+  add_meta_description: true
+  add_tags: true
+  heading_levels: ["h2", "h3"]
+
+# Posting settings
+post_status: "LIVE"  # LIVE or DRAFT
+max_posts_per_run: 3  # Limit posts per day
+
+# Hugging Face Image Generation
+hf_token: ""  # Set via HF_TOKEN env var in production
+hf_model: "black-forest-labs/FLUX.1-dev"
