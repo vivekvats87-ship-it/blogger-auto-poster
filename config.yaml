@@ -25,8 +25,9 @@ seo:
 
 # Posting settings
 post_status: "LIVE"
-# Blogger is returning HTTP 429 when a run attempts many posts.
-# Keep hourly runs within the Blogger API quota.
-max_posts_per_run: 1
+# 5 articles per run. post_delay_seconds spaces out requests
+# to stay inside the Blogger API quota (avoids HTTP 429).
+max_posts_per_run: 5
+post_delay_seconds: 30
 
 # Image generation has been removed. Articles are text-only.
