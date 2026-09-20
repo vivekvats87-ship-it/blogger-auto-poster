@@ -547,6 +547,11 @@ def main():
             posts_created += 1
             mark_posted(conn, url, title)
             mark_topic_posted(conn, title, keywords)
+            # Space out posts to stay inside the Blogger API quota
+            delay = config.get('post_delay_seconds', 30)
+            if posts_created < max_posts:
+                logger.info(f"Waiting {delay}s before next post...")
+                time.sleep(delay)
         except Exception as e:
             logger.error(f"Failed to post: {e}")
             continue
